@@ -2,109 +2,111 @@ import random
 from environment import Agent, Environment
 from planner import RoutePlanner
 from simulator import Simulator
-import math
 from collections import namedtuple
-import pprint
-from scipy import constants as sc
 
 class QLearningAgent(Agent):
     """An agent that learns to drive in the smartcab world using Q learning"""
 
     def __init__(self, env):
-        super(QLearningAgent, self).__init__(env)  # sets self.env = env, state = None, next_waypoint = None, and a default color
-        self.color = 'red'  # OverflowError(" error")ide color
-        self.planner = RoutePlanner(self.env, self)  # simple route planner to get next_waypoint
-        ##initialize q table here
-        self.qDict = dict()
-        self.alpha    = 0.9
-        self.epsilon  = 0.0 ##initial probability of flipping the coin
-        self.gamma    = 0.35
-        self.discount = self.gamma
-        self.previous_state = None
+        """
+        this function is used to initialize the agent variables
+        that will be used for the process.
+        Even Q learning parameters like alpha, beta (epsilon) and gamma are initialized
+        these are used in updating the Q Table.
+        """
+        super(QLearningAgent, self).__init__(env)                               # sets self.env = env, state = None, next_waypoint = None, and a default color
+        self.color = 'magenta'                                                  # color
+        self.planner = RoutePlanner(self.env, self)                             # route planner to get next_waypoint
+        self.q_dict = dict()                                                    #initialize q table here
+        self.alpha    = 0.60                                                    #initializes learning rate
+        self.beta = 0.0                                                         #initialize beta
+        self.gamma    = 0.40
+        self.discount = self.gamma                                              #initialize gamma
+        self.prev_state = None
         self.state = None
-        self.previous_action = None
+        self.prev_action = None
         self.deadline = self.env.get_deadline(self)
-        self.previous_reward = None
-        self.cumulativeRewards = 0
+        self.prev_reward = None
+        self.sum_rewards = 0
 
 
-    def flipCoin(self, p ):
-        r = random.random()
-        return r < p
+    def rnd_value_gen(self, param ):
+        """
+        generates a random value that depends on the paramter passed to it
+        """
+        rnd = random.random()
+        return rnd < param
 
     def reset(self, destination=None):
         """
-        resets the current values of the agent
+        resets the agent variables to restart the process
+        destinationis given as input
         """
         self.planner.route_to(destination)
-        self.previous_state = None
+        self.prev_state = None
         self.state = None
-        self.previous_action = None
-        self.epsilon = 0.0
-        self.cumulativeRewards = 0
+        self.prev_action = None
+        self.beta = 0.0
+        self.sum_rewards = 0
 
-    def getLegalActions(self, state):
+    def proper_actions(self, state):
         """
-        returns the legal action from the current state
+        returns the allowed proper actions for the agent
+        takes current states as input
         """
         return ['forward', 'left', 'right', None]
 
-    ##gets the q value for a particulat state and action
-    def getQValue(self, state, action):
-        """
-        input: (state,action)
-        output: Q value for the (state,action)
-        returns 0 if the value is not present in the dictionary.
-        """
-        return self.qDict.get((state, action), 20.0)  ##return the value from the qDict, default to 0 if the key isnt in the dict
 
-    def getValue(self, state):
+    def q_value(self, state, action):
         """
-         Returns max_action Q(state,action)
-         where the max is over legal actions.  Note that if
-         there are no legal actions, which is the case at the
-         terminal state, you should return a value of 0.0.
+        current state and action are inputs and the q value is given after refering the dictionary
+        if value not present in the dictionary, it returns 0
         """
-        legalActions = self.getLegalActions(state)
-        bestQValue = - 999999999
+        return self.q_dict.get((state, action), 10.0)
 
-        for action in legalActions:
+    def value(self, state):
+        """
+
+        takes state as input and gives the best q value based on all the legal actions
+        that can be taken.
+
+        """
+        proper_actions = self.proper_actions(state)
+        best_q = - 9999
+
+        for action in proper_actions:
             #for each action check if the q value for the action is greater than minus infinity
-            if(self.getQValue(state, action) > bestQValue):
-                bestQValue = self.getQValue(state, action)
+            if(self.q_value(state, action) > best_q):
+                best_q = self.q_value(state, action)
 
-        return bestQValue
+        return best_q
 
-    def getPolicy(self, state):
+    def policy(self, state):
         """
-        Compute the best action to take in a state.
-        input: state
-        output: best possible action(policy maps states to action)
-        Working:
-        From all the legal actions, return the action that has the bestQvalue.
-        if two actions are tied, flip a coin and choose randomly between the two.
+        determines the action to be taken based on the state
+        takes any one action in the event of a tie.
         """
-        legalActions = self.getLegalActions(state)
-        bestAction = None
-        bestQValue = - 999999999
-        for action in legalActions:
-            if(self.getQValue(state, action) > bestQValue):
-                bestQValue = self.getQValue(state, action)
-                bestAction = action
-            if(self.getQValue(state, action) == bestQValue):
-                if(self.flipCoin(.5)):
-                    bestQValue = self.getQValue(state, action)
-                    bestAction = action
-        return bestAction
+        proper_actions = self.proper_actions(state)
+        best_action = None
+        best_q = - 9999
+        for action in proper_actions:
+            if(self.q_value(state, action) > best_q):
+                best_q = self.q_value(state, action)
+                best_action = action
+            if(self.q_value(state, action) == best_q):
+                if(self.rnd_value_gen(.5)):
+                    best_q = self.q_value(state, action)
+                    best_action = action
+        return best_action
 
-    def makeState(self, state):
+    def make_state(self, state):
         """
-        This function makes a state and returns
-        input: State
-        ouput: Named State tuple
-        This is useful for creating the q dictionary.
+
+        useful to create the Q dictionary.
+        Creates a namedtuple with the states.
+
         """
-        ## harnesss 'destination': (4, 5), 'deadline': 20, 'location': (7, 1), 'heading': (0, 1)
+
         State = namedtuple("State", ["light","next_waypoint"])
         return State(light = state['light'],
                         next_waypoint = self.planner.next_waypoint())
@@ -112,65 +114,51 @@ class QLearningAgent(Agent):
 
     def update(self, t):
         """
-        This is the overridden mehtod that basically peforms the necessary update
+
+        updates the state of the agent and sets the reward based on action taken.
+
         """
 
-        self.next_waypoint = self.planner.next_waypoint()  # from route planner, also displayed by simulator
+        self.next_waypoint = self.planner.next_waypoint()
+        self.state = self.make_state(self.env.sense(self))                      #current state
+        action = self.action(self.state)                                        #current best action
+        reward = self.env.act(self, action)                                     #reward for action determined
+        if self.prev_reward!= None:
+            #update q table based on change in previous reward
+            self.change_qtable(self.prev_state,self.prev_action,self.state,self.prev_reward)
 
-        ## this is my current state
-        self.state = self.makeState(self.env.sense(self))
+        #update states, action and rewards
+        self.prev_action = action
+        self.prev_state = self.state
+        self.prev_reward = reward
+        self.sum_rewards += reward
 
-        ##get the current best action based on q table
-        action = self.getAction(self.state)
-
-        ##perform the action and now get the reward
-        reward = self.env.act(self, action)
-
-        ## in case of initial configuration don't update the q table, else update q table
-        if self.previous_reward!= None:
-            self.updateQTable(self.previous_state,self.previous_action,self.state,self.previous_reward)
-
-        # store the previous action and state so that we can update the q table on the next iteration
-        self.previous_action = action
-        self.previous_state = self.state
-        self.previous_reward = reward
-        self.cumulativeRewards += reward
-        # pretty print q table (optional)
-
-
-
-    def getAction(self, state):
+    def action(self, state):
         """
-        Compute the action to take in the current state.
-        Working:
-        epsilon of the time, choose a random action from all legal actions,
-        else choose the action given by the policy
-        TODO:
-        implement a dealine specific epsilon. Exploit when time limit is reached
+
+        determine action based on all probable actions
+        choose random choice beta times and rest of the time choose
+        policy choice
+
         """
-    # Pick Action
-        legalActions = self.getLegalActions(state)
+
+        proper_actions = self.proper_actions(state)
         action = None
-        print legalActions
-        if (self.flipCoin(self.epsilon)):
-            print "random choice"
-            action = random.choice(legalActions)
+        if (self.rnd_value_gen(self.beta)):
+            action = random.choice(proper_actions)
         else:
-            print "policy choice"
-            action = self.getPolicy(state)
+            action = self.policy(state)
         return action
 
-    def updateQTable(self, state, action, nextState, reward):
-        """
-         The parent class calls this to observe a
-         state = action => nextState and reward transition.
-         You should do your Q-Value update here
-
-         NOTE: You should never call this function,
-         it will be called on your behalf
+    def change_qtable(self, state, action, nxt_state, reward):
         """
 
-        if((state, action) not in self.qDict):
-            self.qDict[(state, action)] = 20.0
+        Q-table update done by calling this function.
+
+        """
+
+        if((state, action) not in self.q_dict):
+            self.q_dict[(state, action)] = 10.0
         else:
-            self.qDict[(state, action)] = self.qDict[(state, action)] + self.alpha*(reward + self.discount*self.getValue(nextState) - self.qDict[(state, action)]) ##set the previous state's qValue to itself plus alpha*(reward + gamma*value of next state - old q value)
+            #previous state += alpha*(reward + gamma*value of next state - old q value)
+            self.q_dict[(state, action)] += self.alpha*(reward + self.discount*self.value(nxt_state) - self.q_dict[(state, action)])

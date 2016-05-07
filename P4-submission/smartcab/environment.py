@@ -29,7 +29,7 @@ class Environment(object):
     valid_actions = [None, 'forward', 'left', 'right']
     valid_inputs = {'light': TrafficLight.valid_states, 'oncoming': valid_actions, 'left': valid_actions, 'right': valid_actions}
     valid_headings = [(1, 0), (0, -1), (-1, 0), (0, 1)]  # ENWS
-
+    count_fail = 0
     def __init__(self):
         self.done = False
         self.t = 0
@@ -117,6 +117,7 @@ class Environment(object):
             if self.enforce_deadline and self.agent_states[self.primary_agent]['deadline'] <= 0:
                 self.done = True
                 print "Environment.reset(): Primary agent could not reach destination within deadline!"
+                self.count_fail +=1
             self.agent_states[self.primary_agent]['deadline'] -= 1
 
     def sense(self, agent):

@@ -2,41 +2,34 @@ import random
 from environment import Agent, Environment
 from planner import RoutePlanner
 from simulator import Simulator
-import math
-from collections import namedtuple
 from QLearningAgent import QLearningAgent
-import pprint
+
 
 
 class LearningAgent(Agent):
     """An agent that learns to drive in the smartcab world."""
 
     def __init__(self, env):
-        """
-        initializes the environment variables
-        input: env, initializes the environment variable for sensing
-        working: also responsible for initializing the color of the car,
-        initializing the route planner and the reward and previous action.
-        """
+        
         super(LearningAgent, self).__init__(env)
-        self.color = 'black'
+        self.color = 'magenta'
         self.planner = RoutePlanner(self.env, self)  # simple route planner to get next_waypoint
-        self.previous_reward = 0
-        self.previous_action = None
+        self.prev_action = None
+        self.prev_reward = 0
+
 
     def reset(self, destination=None):
-        """
-        reset values to start a new trial run
-        """
         self.planner.route_to(destination)
         # TODO: Prepare for a new trip; reset any variables here, if required
-        self.previous_reward = 0
-        self.previous_action = None
         self.state = None
+        self.prev_action = None
+        self.prev_reward = 0
+
+
 
     def update(self, t):
         """
-        Main update method that is responsible for updating the agent action.
+        updates the agent action.
         """
         # Gather inputs
         self.next_waypoint = self.planner.next_waypoint()  # from route planner, also displayed by simulator
@@ -44,32 +37,32 @@ class LearningAgent(Agent):
         deadline = self.env.get_deadline(self)
 
         # TODO: Update state
-        ## currently using two states called random and initiated
+        #two states : random and init
         if(self.state == None):
             self.state = 'Random'
         #print 'environment state:'
         # {'light': 'green', 'oncoming': None, 'right': None, 'left': None}
-        current_env_state = self.env.sense(self)
+        current_environment_state = self.env.sense(self)
         action = None
 
-        possible_actions = []
-        if(current_env_state['light'] == 'red'):
-            if(current_env_state['oncoming'] != 'left'):
-                possible_actions = ['right', None]
+        probable_actions = []
+        if(current_environment_state['light'] == 'red'):
+            if(current_environment_state['oncoming'] != 'left'):
+                probable_actions = ['right', None]
         else:
-            # traffic ligh is gree and now check for oncoming
+            # traffic light is green and now check for oncoming
             #if no oncoming
-            if(current_env_state['oncoming'] == 'forward'):
-                possible_actions = [ 'forward','right']
+            if(current_environment_state['oncoming'] == 'forward'):
+                probable_actions = [ 'forward','right']
             else:
-                possible_actions = ['right','forward', 'left']
+                probable_actions = ['right','forward', 'left']
 
         # TODO: Select action according to your policy
-        if possible_actions != [] and self.state == 'Random':
-            action_int =  random.randint(0,len(possible_actions)-1)
-            action = possible_actions[action_int]
-        elif possible_actions != [] and self.state == 'Initiated':
-            action = self.previous_action
+        if probable_actions != [] and self.state == 'Random':
+            action_int_value =  random.randint(0,len(probable_actions)-1)
+            action = probable_actions[action_int_value]
+        elif probable_actions != [] and self.state == 'Init':
+            action = self.prev_action
 
 
 
@@ -79,25 +72,19 @@ class LearningAgent(Agent):
         # TODO: Learn policy based on state, action, reward
 
         if(action != None):
-            if(reward > self.previous_reward):
-                self.state = 'Initiated'
-                self.previous_action = action
-                self.previous_reward = reward
+            if(reward > self.prev_reward):
+                self.state = 'Init'
+                self.prev_action = action
+                self.prev_reward = reward
             else:
                 self.state = 'Random'
-                self.previous_action = action
-                self.previous_reward = reward
+                self.prev_action = action
+                self.prev_reward = reward
 
 
 
 
-        print "LearningAgent.update(): deadline = {}, inputs = {}, action = {}, reward = {}".format(deadline, inputs, action, reward)  # [debug]
-
-
-def allPossibleStates():
-    states = ["next_waypoint","destination","location",
-                "destination","light","oncoming","left","right","heading"]
-    return states
+        #print "LearningAgent.update(): deadline = {}, inputs = {}, action = {}, reward = {}".format(deadline, inputs, action, reward)  # [debug]
 
 def run():
     """Run the agent for a finite number of trials."""
@@ -106,9 +93,9 @@ def run():
     a = e.create_agent(QLearningAgent)  # create agent
     e.set_primary_agent(a, enforce_deadline=True)  # set agent to track
         # Now simulate it
-    sim = Simulator(e, update_delay=0.00001)  # reduce update_delay to speed up simulation
+    sim = Simulator(e, update_delay=0.0000001)  # reduce update_delay to speed up simulation
     sim.run(n_trials=100)  # press Esc or close pygame window to quit
-
+    print "No. of fails = {}".format(e.count_fail)
 
 
 
