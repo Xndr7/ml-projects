@@ -10,7 +10,7 @@ class LearningAgent(Agent):
     """An agent that learns to drive in the smartcab world."""
 
     def __init__(self, env):
-        
+
         super(LearningAgent, self).__init__(env)
         self.color = 'magenta'
         self.planner = RoutePlanner(self.env, self)  # simple route planner to get next_waypoint
@@ -85,7 +85,7 @@ class LearningAgent(Agent):
 
 
         #print "LearningAgent.update(): deadline = {}, inputs = {}, action = {}, reward = {}".format(deadline, inputs, action, reward)  # [debug]
-
+ 
 def run():
     """Run the agent for a finite number of trials."""
 
@@ -93,9 +93,10 @@ def run():
     a = e.create_agent(QLearningAgent)  # create agent
     e.set_primary_agent(a, enforce_deadline=True)  # set agent to track
         # Now simulate it
-    sim = Simulator(e, update_delay=0.0000001)  # reduce update_delay to speed up simulation
+    sim = Simulator(e, update_delay=0.00000000001)  # reduce update_delay to speed up simulation
     sim.run(n_trials=100)  # press Esc or close pygame window to quit
     print "No. of fails = {}".format(e.count_fail)
+
 
 
 

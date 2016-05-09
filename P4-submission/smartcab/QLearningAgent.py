@@ -3,6 +3,7 @@ from environment import Agent, Environment
 from planner import RoutePlanner
 from simulator import Simulator
 from collections import namedtuple
+import pprint
 
 class QLearningAgent(Agent):
     """An agent that learns to drive in the smartcab world using Q learning"""
@@ -15,12 +16,12 @@ class QLearningAgent(Agent):
         these are used in updating the Q Table.
         """
         super(QLearningAgent, self).__init__(env)                               # sets self.env = env, state = None, next_waypoint = None, and a default color
-        self.color = 'magenta'                                                  # color
+        self.color = 'black'                                                    # color
         self.planner = RoutePlanner(self.env, self)                             # route planner to get next_waypoint
-        self.q_dict = dict()                                                    #initialize q table here
-        self.alpha    = 0.60                                                    #initializes learning rate
+        self.q_table = dict()                                                    #initialize q table here
+        self.alpha    = 0.70                                                    #initializes learning rate
         self.beta = 0.0                                                         #initialize beta
-        self.gamma    = 0.40
+        self.gamma    = 0.50
         self.discount = self.gamma                                              #initialize gamma
         self.prev_state = None
         self.state = None
@@ -60,9 +61,9 @@ class QLearningAgent(Agent):
     def q_value(self, state, action):
         """
         current state and action are inputs and the q value is given after refering the dictionary
-        if value not present in the dictionary, it returns 0
+        if value not present in the dictionary, it returns 15
         """
-        return self.q_dict.get((state, action), 10.0)
+        return self.q_table.get((state, action), 15.0)
 
     def value(self, state):
         """
@@ -107,9 +108,10 @@ class QLearningAgent(Agent):
 
         """
 
-        State = namedtuple("State", ["light","next_waypoint"])
+        State = namedtuple("State", ["light","next_waypoint","oncoming"])
         return State(light = state['light'],
-                        next_waypoint = self.planner.next_waypoint())
+                        next_waypoint = self.planner.next_waypoint(),
+                        oncoming = state['oncoming'])
 
 
     def update(self, t):
@@ -132,7 +134,7 @@ class QLearningAgent(Agent):
         self.prev_state = self.state
         self.prev_reward = reward
         self.sum_rewards += reward
-
+        #pprint.pprint(self.q_table,width= 1)
     def action(self, state):
         """
 
@@ -157,8 +159,9 @@ class QLearningAgent(Agent):
 
         """
 
-        if((state, action) not in self.q_dict):
-            self.q_dict[(state, action)] = 10.0
-        else:
+        if((state, action) in self.q_table):
             #previous state += alpha*(reward + gamma*value of next state - old q value)
-            self.q_dict[(state, action)] += self.alpha*(reward + self.discount*self.value(nxt_state) - self.q_dict[(state, action)])
+            self.q_table[(state, action)] += self.alpha*(reward + self.discount*self.value(nxt_state) - self.q_table[(state, action)])
+        else:
+
+            self.q_table[(state, action)] = 15.0
